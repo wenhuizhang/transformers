@@ -13,6 +13,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import hmac
+import hashlib
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes
+
 import collections
 import copy
 import functools
@@ -2621,6 +2627,25 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         # for offloaded modules
         module_map = {}
+
+        # Load private key
+        with open('/tmp/key/private_key.pem', 'rb') as key_file:
+            private_key = serialization.load_pem_private_key(
+            key_file.read(),
+            password=None,
+            )
+
+        # Load HMAC message
+        with open('/tmp/key/msg.txt', 'rb') as msg_file:
+            hmac_message = msg_file.read()
+
+        # Function to generate HMAC
+        def generate_hmac(data):
+            return hmac.new(hmac_message, data, hashlib.sha256).digest()
+
+        # Function to encrypt data
+        def encrypt_data(data):
+            return private_key.encrypt(data, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
 
         # Save the model
         if state_dict is None:
